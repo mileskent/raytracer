@@ -6,23 +6,29 @@ use std::io::{BufWriter, Write};
 use prelude::*;
 use ray::*;
 
-fn hit_sphere(center: Point3f, radius: f64, r: &Ray) -> bool {
+fn hit_sphere(center: Point3f, radius: f64, r: &Ray) -> f64 {
     let oc = center - r.origin();
-    let a = r.direction().dot(&r.direction());
-    let b = -2.0 * r.direction().dot(&oc);
-    let c = oc.dot(&oc) - radius * radius;
-    let discriminant = b * b - 4.0 * a * c;
-    discriminant >= 0.0
+    let a = r.direction().norm_squared();
+    let h = r.direction().dot(&oc);
+    let c = oc.norm_squared() - radius * radius;
+    let discriminant = h*h - a*c;
+    if (discriminant < 0.0) { return -1.0; }
+    else { return (h - discriminant.sqrt()) / (a); }
 }
 
 fn pixel_color(ray: &Ray) -> Vec3f {
-    if (hit_sphere(Point3f::new(0.0, 0.0, -1.0), 0.5, ray)) {
-        Vec3f::new(1.0, 0.0, 0.0)
-    } else {
-        let unit_direction = ray.direction().normalize();
-        let a = 0.5 * (unit_direction.y + 1.0);
-        (1.0 - a) * Vec3f::new(1.0, 1.0, 1.0) + a * Vec3f::new(0.5, 0.7, 1.0)
+    let t = hit_sphere(Point3f::new(0.0, 0.0, -1.0), 0.5, ray);
+
+    if (t > 0.0) {
+        let N = (ray.at(t) - Vec3f::new(0.0, 0.0, -1.0))
+            .coords
+            .normalize();
+        return 0.5 * Vec3f::new(N.x + 1.0, N.y + 1.0, N.z + 1.0);
     }
+
+    let unit_direction = ray.direction().normalize();
+    let a = 0.5 * (unit_direction.y + 1.0);
+    (1.0 - a) * Vec3f::new(1.0, 1.0, 1.0) + a * Vec3f::new(0.5, 0.7, 1.0)
 }
 
 pub fn color_to_rgb(color: Vec3f) -> [u8; 3] {
